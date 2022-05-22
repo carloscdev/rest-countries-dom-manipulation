@@ -1,9 +1,67 @@
+// import { registerImage } from "./lazy";
+
 const BASE_URL = "https://restcountries.com/v3.1/all"
 
 const app = document.querySelector("#app")
-const main_container = document.createElement("section")
+const main_container = document.createElement("main")
 const search_container = document.createElement("section")
 const page_container = document.createElement("section")
+const modal_container = document.createElement("section")
+
+modal_container.className =
+  "absolute w-full h-full inset-0 bg-black bg-opacity-70 flex items-center justify-center modal_container hidden"
+document.body.append(modal_container)
+
+modal_container.addEventListener("click", (e) => {
+  e.stopPropagation()
+  modal_container.classList.add('hidden')
+})
+
+main_container.addEventListener("mousedown", (e) => {
+  const curren_modal_card = document.querySelector('.modal-card')
+  if (curren_modal_card) curren_modal_card.remove()
+  const currentNode = e.target.nodeName
+  let currentCountry = {}
+  if ( currentNode === 'DIV') currentCountry = JSON.parse(e.target.dataset.country)
+  else if (currentNode === 'H3' || currentNode === 'IMG') currentCountry = JSON.parse(e.target.parentNode.dataset.country)
+
+  const image_country = document.createElement("img")
+  image_country.className = 'w-full h-auto object-cover'
+  image_country.src = currentCountry?.flags?.png
+
+  const title_country = document.createElement('h3')
+  title_country.className = 'text-lg font-semibold truncate'
+  title_country.textContent = currentCountry?.name?.common
+
+  const capital_country = document.createElement('small')
+  capital_country.className = 'text-sm font-light block'
+  capital_country.textContent = 'Capital: ' + currentCountry?.capital.join('-')
+
+  const population_country = document.createElement("small")
+  population_country.className = 'text-sm font-light block'
+  population_country.textContent = 'Population: ' + currentCountry?.population
+
+  const continents_country = document.createElement('small')
+  continents_country.className = 'text-sm font-light block'
+  continents_country.textContent = 'Continents: ' + currentCountry?.continents.join('-')
+
+  const timezones_country = document.createElement('small')
+  timezones_country.className = 'text-sm font-light block'
+  timezones_country.textContent = 'Time Zone: ' + currentCountry?.timezones.join('-')
+
+  const detail_country = document.createElement("div")
+  detail_country.className = 'p-4'
+  detail_country.append(title_country, capital_country, population_country, continents_country, timezones_country)
+
+
+  const modal_card = document.createElement("div")
+  modal_card.className = "w-[320px] min-h-[180px] max-w-[95%] bg-white rounded-lg shadow modal-card overflow-hidden"
+  modal_card.append(image_country, detail_country)
+
+  modal_container.classList.remove('hidden')
+  modal_container.appendChild(modal_card)
+})
+
 const countries_list_raw = []
 let countries_list = []
 let current_page = 1
@@ -23,7 +81,7 @@ const getAllCountries = async () => {
     )
     countries_list_raw.push(...results_ordered)
     total_countries = countries_list_raw.length
-    total_page = total_countries / per_page
+    total_page = Math.ceil(total_countries / per_page)
     formatPages()
     createElementsInDom()
   } catch (error) {
@@ -132,20 +190,25 @@ const createPaginatorContainer = () => {
 const mapAllCountriesInCard = () => {
   const countries_items = countries_list.map((country) => {
     const image_country = document.createElement("img")
-    image_country.className = "w-[25px] h-[20px] object-cover rounded"
-    image_country.src = country?.flags.png
+    image_country.className = "w-[40px] h-[30px] object-cover rounded bg-gray-200"
+    // image_country.src = country?.flags.png
+    image_country.dataset.src = country?.flags.png
+    image_country.setAttribute('loading', 'lazy');
 
     const title_country = document.createElement("h3")
     title_country.className = "truncate font-semibold"
     title_country.textContent = country.name.common
 
     const card = document.createElement("div")
+    card.dataset.country = JSON.stringify(country)
     card.className =
       "bg-white rounded-lg py-3 px-5 flex items-center gap-5 " +
       "bg-white rounded hover:shadow-md cursor-pointer hover:shadow-blue-500 " +
       "hover:bg-blue-500 hover:text-white ease-in-out duration-300 card-container"
     card.appendChild(image_country)
     card.appendChild(title_country)
+
+    registerImage(card);
 
     return card
   })
@@ -173,3 +236,26 @@ const searchByName = (value) => {
 }
 
 getAllCountries()
+
+
+// lazy loading
+const isIntersecting = (entry) => {
+  return entry.isIntersecting
+}
+
+const loadImage = (entry) => {
+  const container = entry.target
+  const image = container.querySelector('img')
+  const url = image.dataset.src
+  image.src = url
+
+  observer.unobserve(container)
+}
+
+const observer = new IntersectionObserver((entries) => {
+  entries.filter(isIntersecting).forEach(loadImage)
+})
+
+const registerImage = (image) => {
+  observer.observe(image)
+}
